@@ -1,0 +1,286 @@
+package cs102_project;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.stream.Collectors;
+
+interface interEvent {
+    boolean registerAttendee(String attendeeName);
+    int getAvailableCapacity();
+    void displayDetails();
+    String getId();
+    List<String> getAttendees();
+}
+
+abstract class Event implements interEvent {
+
+    private final String id;
+    private String name;
+    private int maxCapacity;
+
+    private final List<String> attendees;
+
+    public Event(String id, String name, int maxCapacity) {
+        this.id = id;
+        setName(name);
+        setMaxCapacity(maxCapacity);
+        this.attendees = new ArrayList<>();
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Event name cannot be empty.");
+        }
+        this.name = name;
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public void setMaxCapacity(int maxCapacity) {
+        if (maxCapacity <= 0) {
+            throw new IllegalArgumentException("Max capacity must be greater than zero.");
+        }
+        this.maxCapacity = maxCapacity;
+    }
+
+    @Override
+    public List<String> getAttendees() {
+        return attendees;
+    }
+
+    @Override
+    public boolean registerAttendee(String attendeeName) {
+    // NOTE: Consider adding a duplicate check here for robustness (as suggested previously)
+    // Example: if (attendees.contains(attendeeName)) { ... return false; }
+    
+        if (attendees.size() < maxCapacity) {
+            attendees.add(attendeeName);
+            System.out.println(" Successfully registered " + attendeeName + " for event " + name);
+            return true;
+        }
+        System.out.println(" Registration failed: Event " + name + " is full.");
+        return false;
+    }
+
+    @Override
+    public int getAvailableCapacity() {
+        return maxCapacity - attendees.size();
+    }
+
+    @Override
+    public final void displayDetails() {
+        System.out.println("------------------------------------");
+        System.out.println("Event ID: " + id);
+        System.out.println("Title: " + name);
+        System.out.println("Capacity: " + attendees.size() + " / " + maxCapacity + " (Available: " + getAvailableCapacity() + ")");
+        displaySpecificDetails();
+
+        System.out.println("Registered Attendees:");
+        if (attendees.isEmpty()) {
+            System.out.println("  - None yet.");
+        } else {
+            for (String attendee : attendees) {
+                System.out.println("  - " + attendee);
+            }
+        }
+    }
+
+    protected abstract void displaySpecificDetails();
+    
+    public abstract boolean removeAttendee(String attendeeName); 
+}
+
+class WorkshopEvent extends Event {
+    private String topic;
+    private String instructor;
+
+    public WorkshopEvent(String id, String name, int maxCapacity, String topic, String instructor) {
+        super(id, name, maxCapacity);
+        this.topic = topic;
+        this.instructor = instructor;
+    }
+
+    @Override
+    protected void displaySpecificDetails() {
+        // Removed: System.out.println("Type: Workshop");
+        System.out.println("Topic: " + topic);
+        System.out.println("Instructor: " + instructor);
+    }
+    
+    @Override
+    public boolean removeAttendee(String attendeeName) {
+        boolean wasRemoved = getAttendees().remove(attendeeName); 
+        
+        if (wasRemoved) {
+            System.out.println(" Successfully removed " + attendeeName + " from event " + getName() + " (" + getId() + ").");
+        } else {
+            System.out.println("Removal failed: " + attendeeName + " was not found in the attendee list for " + getName() + " (" + getId() + ").");
+        }
+        return wasRemoved;
+    }
+}
+
+public class project {
+    private static final Map<String, Event> eventRegistry = new HashMap<>();
+    private static final Scanner scanner = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        System.out.println("Event Management System Initialized ");
+
+        WorkshopEvent ws1 = new WorkshopEvent("WS001", "CyberSecurity Event", 15, "Cloud & Data Security ", "Dr. Mohammed");
+        ws1.registerAttendee("Ibrahim");
+        ws1.registerAttendee("Abdullah");
+        ws1.registerAttendee("Bader");
+        eventRegistry.put(ws1.getId(), ws1);
+
+        WorkshopEvent ws2 = new WorkshopEvent("WS002", "Developers Event", 10, "Web Development", "Mr. Ahmed");
+        ws2.registerAttendee("Faisal");
+        ws2.registerAttendee("Rakan");
+        eventRegistry.put(ws2.getId(), ws2);
+        
+        int choice = 0;
+        do {
+            displayMenu();
+            if (scanner.hasNextInt()) {
+                choice = scanner.nextInt();
+                scanner.nextLine(); 
+                executeChoice(choice);
+            } else {
+                System.out.println("Invalid input. Please enter a number.");
+                scanner.nextLine();
+                choice = -1;
+            }
+        } while (choice != 6); 
+        System.out.println("System Shutdown. Goodbye! ");
+        scanner.close();
+    }
+
+    private static void displayMenu() {
+        System.out.println("\n--- Main Menu ---");
+        System.out.println("1. View All Events & Details");
+        System.out.println("2. Register Attendee to Event");
+        System.out.println("3. Find and Display Event by ID");
+        System.out.println("4. List Events with Available Capacity (Filter)");
+        System.out.println("5. Remove Attendee from Event ⭐");
+        System.out.println("6. Exit"); 
+        System.out.print("Enter choice: ");
+    }
+
+    private static void executeChoice(int choice) {
+        switch (choice) {
+            case 1:
+                viewAllEvents();
+                break;
+            case 2:
+                registerAttendee();
+                break;
+            case 3:
+                findEventById();
+                break;
+            case 4:
+                listEventsWithCapacity();
+                break;
+            case 5:
+                removeAttendee();
+                break;
+            case 6: 
+                break;
+            default:
+                System.out.println("Invalid option. Please try again.");
+        }
+    }
+
+    private static void removeAttendee() {
+        System.out.print("Enter Event ID to remove attendee from: ");
+        String id = scanner.nextLine().trim();
+
+        Event event = eventRegistry.get(id);
+
+        if (event == null) {
+            System.out.println("Error: Event with ID '" + id + "' not found.");
+            return;
+        }
+
+        System.out.print("Enter Attendee Name to remove: ");
+        String attendeeName = scanner.nextLine().trim();
+
+        event.removeAttendee(attendeeName);
+    }
+    
+    private static void viewAllEvents() {
+          if (eventRegistry.isEmpty()) {
+            System.out.println("No events currently registered.");
+            return;
+        }
+        System.out.println("\n--- All Registered Events ---");
+        for (Event event : eventRegistry.values()) {
+            event.displayDetails();
+        }
+    }
+
+    private static void registerAttendee() {
+          System.out.print("Enter Event ID for registration: ");
+        String id = scanner.nextLine().trim();
+
+        Event event = eventRegistry.get(id);
+
+        if (event == null) {
+            System.out.println("Error: Event with ID '" + id + "' not found.");
+            return;
+        }
+
+        if (event.getAvailableCapacity() <= 0) {
+            System.out.println("Registration failed: Event " + event.getName() + " is already full.");
+            return;
+        }
+
+        System.out.print("Enter Attendee Name: ");
+        String attendeeName = scanner.nextLine().trim();
+
+        event.registerAttendee(attendeeName);
+    }
+
+    private static void findEventById() {
+          System.out.print("Enter Event ID to search: ");
+        String id = scanner.nextLine().trim();
+
+        Event event = eventRegistry.get(id);
+
+        if (event == null) {
+            System.out.println("Event with ID '" + id + "' not found.");
+        } else {
+            System.out.println("\n--- Event Found ---");
+            event.displayDetails();
+        }
+    }
+
+    private static void listEventsWithCapacity() {
+        System.out.println("\n--- Events with Available Capacity ---");
+
+        List<Event> availableEvents = eventRegistry.values().stream()
+            .filter(e -> e.getAvailableCapacity() > 0)
+            .collect(Collectors.toList());
+
+        if (availableEvents.isEmpty()) {
+            System.out.println("No events currently have available capacity.");
+        } else {
+            availableEvents.forEach(event -> {
+                System.out.printf("ID: %s | Title: %s | Available Spots: %d%n",
+                    event.getId(), event.getName(), event.getAvailableCapacity());
+            });
+        }
+    }
+}
